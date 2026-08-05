@@ -17,4 +17,5 @@ func NewDb(conf *configs.Config) (*Db, error) {
 		return nil, err
 	}
 	return &Db{db}, nil
+	
 }
