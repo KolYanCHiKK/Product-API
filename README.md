@@ -1,1 +1,1 @@
-# Product API
+# Product API - Golang
