@@ -3,6 +3,7 @@ package main
 import (
 	"app/product-api/configs"
 	"app/product-api/internal/rest/product"
+	"app/product-api/internal/rest/product/repository"
 	db2 "app/product-api/pkg/db"
 	"fmt"
 	"log"
@@ -25,7 +26,14 @@ func startServer() {
 	}
 	fmt.Println(db)
 
-	product.NewHandler(router, conf)
+	// Инициализация репозитория
+	repo := repository.NewRepository(db)
+
+	// Инициализация сервиса
+	service := product.NewService(repo)
+
+	// Подключение хэдлеров
+	product.NewHandler(router, service)
 
 	server := http.Server{
 		Addr:    "localhost:8080",

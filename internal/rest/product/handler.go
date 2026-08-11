@@ -1,56 +1,71 @@
 package product
 
 import (
-	"app/product-api/configs"
 	"app/product-api/pkg/responce"
-	"app/product-api/pkg/utils"
 	"app/product-api/pkg/validation"
 	"encoding/json"
 	"net/http"
-	"time"
-
-	"github.com/lib/pq"
+	"strconv"
 )
 
 type Handler struct {
-	dep *HandlerDependent
+	Service *Service
 }
 
-type HandlerDependent struct {
-	Config *configs.Config
-}
+func NewHandler(router *http.ServeMux, service *Service) {
+	h := &Handler{Service: service}
 
-func NewHandler(router *http.ServeMux, conf *configs.Config) {
-	dep := HandlerDependent{conf}
-	h := &Handler{dep: &dep}
-
-	router.HandleFunc("GET /products", h.getProducts())
+	router.HandleFunc("GET /products", h.GetProducts())
+	router.HandleFunc("GET /products/{id}", h.GetProductById())
 	router.HandleFunc("POST /products", h.CreateProduct())
-	router.HandleFunc("PUT /products", h.UpdateProduct())
+	router.HandleFunc("PUT /products/{id}", h.UpdateProduct())
+	router.HandleFunc("PATCH /products/{id}", h.PatchProduct())
 	router.HandleFunc("DELETE /products", h.DeleteProduct())
 }
 
-func (h *Handler) getProducts() http.HandlerFunc {
+func (h *Handler) GetProducts() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		resp := GetAllProductResponse{Products: []Product{
-			{
-				ProductId:    1,
-				Name:         "Картофель",
-				Price:        67.99,
-				Quantity:     1500,
-				Descriptions: "Картофель Greenteam",
-				Images: pq.StringArray{
-					"https://picsum.photos/800/600",
-					"https://picsum.photos/1200/800",
-				},
-				CreateAt: time.Now(),
-				UpdateAt: time.Now(),
-			},
-		}}
-		err := responce.CreateResponse(w, 200, resp)
+		query := req.URL.Query()
+		if query.Get("page") == "" || query.Get("pageSize") == "" {
+			responce.CreateErrResponse(w, 400, "Missing pagination in request")
+			return
+		}
+		page, err1 := strconv.Atoi(query.Get("page"))
+		pageSize, err2 := strconv.Atoi(query.Get("pageSize"))
+		if err1 != nil || err2 != nil {
+			responce.CreateErrResponse(w, 400, "Parameters page and pageSize should be int")
+			return
+		}
+
+		resp, err := h.Service.GetAllProduct(page, pageSize, query.Get("orderBy"))
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
 			return
+		}
+		err = responce.CreateResponse(w, 200, resp)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+	}
+}
+
+func (h *Handler) GetProductById() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		productId := req.PathValue("id")
+		resp, err := h.Service.GetProductById(productId)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+		if resp == nil {
+			responce.CreateErrResponse(w, 404, "Resource is not found")
+			return
+		}
+
+		err = responce.CreateResponse(w, 200, resp)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
 		}
 	}
 }
@@ -74,19 +89,16 @@ func (h *Handler) CreateProduct() http.HandlerFunc {
 			return
 		}
 
-		resp := Product{
-			ProductId:    1,
-			Name:         body.Name,
-			Price:        *body.Price,
-			Quantity:     *body.Quantity,
-			Descriptions: body.Descriptions,
-			Images:       utils.MapProductImage(body.Images),
-			CreateAt:     time.Now(),
-			UpdateAt:     time.Now(),
+		resp, err := h.Service.CreateProduct(&body)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
 		}
+
 		err = responce.CreateResponse(w, 201, resp)
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
+			return
 		}
 	}
 }
@@ -109,20 +121,80 @@ func (h *Handler) UpdateProduct() http.HandlerFunc {
 			responce.CreateErrResponse(w, 400, errs...)
 			return
 		}
-
-		resp := Product{
-			ProductId:    1,
-			Name:         body.Name,
-			Price:        *body.Price,
-			Quantity:     *body.Quantity,
-			Descriptions: body.Descriptions,
-			Images:       utils.MapProductImage(body.Images),
-			CreateAt:     time.Now(),
-			UpdateAt:     time.Now(),
+		productId, err := strconv.Atoi(req.PathValue("id"))
+		if err != nil {
+			responce.CreateErrResponse(w, 400, "Id is not int")
+			return
 		}
+
+		resp, err := h.Service.PutProduct(
+			productId,
+			body,
+		)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+		if resp == nil {
+			responce.CreateErrResponse(w, 404, "Product not found")
+			return
+		}
+
 		err = responce.CreateResponse(w, 200, resp)
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+	}
+}
+
+func (h *Handler) PatchProduct() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		var body PatchProductRequest
+		err := json.NewDecoder(req.Body).Decode(&body)
+		if err != nil {
+			responce.CreateErrResponse(w, 400, err.Error())
+			return
+		}
+
+		errs := validation.ValidateBody(
+			body,
+			validation.ProductRequestValidate,
+			RegisterPatchProductRequestValidateParameters,
+		)
+		if errs != nil {
+			responce.CreateErrResponse(w, 400, errs...)
+			return
+		}
+		productId, err := strconv.Atoi(req.PathValue("id"))
+		if err != nil {
+			responce.CreateErrResponse(w, 400, "Id is not int")
+			return
+		}
+
+		resp, err := h.Service.PatchProduct(
+			map[string]any{
+				"name":         body.Name,
+				"price":        body.Price,
+				"quantity":     body.Quantity,
+				"descriptions": body.Descriptions,
+				"images":       body.Images,
+			},
+			productId,
+		)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+		if resp == nil {
+			responce.CreateErrResponse(w, 404, "Product not found")
+			return
+		}
+
+		err = responce.CreateResponse(w, 200, resp)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
 		}
 	}
 }
@@ -146,31 +218,29 @@ func (h *Handler) DeleteProduct() http.HandlerFunc {
 			return
 		}
 
-		var resp DeleteProductResponse
-		if body.Name == nil && body.Descriptions == nil && body.Images == nil {
-			resp.Success = false
-			resp.Rows = nil
-		} else {
-			resp = DeleteProductResponse{
-				Success: true,
-				Rows: []Product{
-					{
-						ProductId:    1,
-						Name:         "cffs",
-						Price:        1,
-						Quantity:     1,
-						Descriptions: "fd",
-						Images:       utils.MapProductImage("1"),
-						CreateAt:     time.Now(),
-						UpdateAt:     time.Now(),
-					},
-				},
-			}
+		resp, err := h.Service.DeleteProduct(
+			map[string]any{
+				"productId":    body.ProductId,
+				"name":         body.Name,
+				"price":        body.Price,
+				"quantity":     body.Quantity,
+				"descriptions": body.Descriptions,
+				"images":       body.Images,
+			},
+		)
+		if err != nil {
+			responce.CreateErrResponse(w, 500, err.Error())
+			return
+		}
+		if resp == nil {
+			responce.CreateErrResponse(w, 404, "Product not found")
+			return
 		}
 
 		err = responce.CreateResponse(w, 200, resp)
 		if err != nil {
-			responce.CreateErrResponse(w, 500, err.Error())
+			responce.CreateErrResponse(w, 200, err.Error())
+			return
 		}
 	}
 }

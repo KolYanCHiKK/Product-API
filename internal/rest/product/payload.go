@@ -1,13 +1,21 @@
 package product
 
 import (
+	"app/product-api/internal/rest/product/repository"
 	"app/product-api/pkg/validation"
 
 	"github.com/go-playground/validator/v10"
 )
 
 type GetAllProductResponse struct {
-	Products []Product `json:"products"`
+	Products []repository.Product `json:"products"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"pageSize"`
+	Total    int                  `json:"total"`
+}
+
+type GetProductByIdResponse struct {
+	repository.Product
 }
 
 type CreateProductRequest struct {
@@ -28,7 +36,7 @@ func RegisterCreateProductRequestValidateParameters() (*validator.Validate, erro
 }
 
 type CreateProductResponse struct {
-	Product
+	repository.Product
 }
 
 type UpdateProductRequest struct {
@@ -49,13 +57,37 @@ func RegisterUpdateProductRequestValidateParameters() (*validator.Validate, erro
 }
 
 type UpdateProductResponse struct {
-	Product
+	repository.Product
+}
+
+type PatchProductRequest struct {
+	Name         string   `json:"name" validate:"omitempty,min=3"`
+	Price        *float64 `json:"price" validate:"omitempty,gt=0.04,scale=2"`
+	Quantity     *int     `json:"quantity" validate:"omitempty"`
+	Descriptions string   `json:"descriptions" validate:"max=2000"`
+	Images       string   `json:"images" validate:"max=2000"`
+}
+
+func RegisterPatchProductRequestValidateParameters() (*validator.Validate, error) {
+	validate := validator.New()
+	err := validate.RegisterValidation("scale", validation.ScaleValidate)
+	if err != nil {
+		return nil, err
+	}
+	return validate, nil
+}
+
+type PatchProductResponse struct {
+	repository.Product
 }
 
 type DeleteProductRequest struct {
-	Name         *string `json:"name" validate:"omitempty,min=3"`
-	Descriptions *string `json:"descriptions" validate:"omitempty,max=2000"`
-	Images       *string `json:"images" validate:"omitempty,max=2000"`
+	ProductId    *int     `json:"productId"`
+	Name         string   `json:"name" validate:"omitempty,min=3"`
+	Price        *float64 `json:"price" validate:"omitempty,gt=0.04,scale=2"`
+	Quantity     *int     `json:"quantity" validate:"omitempty"`
+	Descriptions string   `json:"descriptions" validate:"max=2000"`
+	Images       string   `json:"images" validate:"max=2000"`
 }
 
 func RegisterDeleteProductRequestValidateParameters() (*validator.Validate, error) {
@@ -68,6 +100,7 @@ func RegisterDeleteProductRequestValidateParameters() (*validator.Validate, erro
 }
 
 type DeleteProductResponse struct {
-	Success bool      `json:"success"`
-	Rows    []Product `json:"rows,omitempty"`
+	Success     bool                 `json:"success"`
+	TotalDelete int                  `json:"totalDelete"`
+	Rows        []repository.Product `json:"rows,omitempty"`
 }

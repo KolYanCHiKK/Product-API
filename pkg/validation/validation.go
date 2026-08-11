@@ -31,7 +31,8 @@ func ValidateBody(body any, validateMap map[string]string, registerFunc func() (
 
 func ScaleValidate(f1 validator.FieldLevel) bool {
 	price := f1.Field().Float()
-	if math.Round(price*100) != price*100 {
+	scaled := price * 100
+	if math.Abs(scaled-math.Round(scaled)) > 0.00001 {
 		return false
 	}
 	return true

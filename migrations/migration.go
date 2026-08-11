@@ -2,7 +2,7 @@ package main
 
 import (
 	"app/product-api/configs"
-	"app/product-api/internal/rest/product"
+	"app/product-api/internal/rest/product/repository"
 	db2 "app/product-api/pkg/db"
 )
 
@@ -13,7 +13,7 @@ func main() {
 		panic("ERROR DB CONNECT")
 	}
 
-	err = db.AutoMigrate(product.Product{})
+	err = db.AutoMigrate(repository.Product{})
 	if err != nil {
 		panic("MIGRATION FAILED")
 	}
