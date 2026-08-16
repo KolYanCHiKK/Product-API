@@ -66,6 +66,7 @@ func (h *Handler) GetProductById() http.HandlerFunc {
 		err = responce.CreateResponse(w, 200, resp)
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
+			return
 		}
 	}
 }
