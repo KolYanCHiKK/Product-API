@@ -4,6 +4,7 @@ import (
 	"app/product-api/configs"
 	"app/product-api/internal/rest/product"
 	"app/product-api/internal/rest/product/repository"
+	"app/product-api/internal/rest/user"
 	db2 "app/product-api/pkg/db"
 	"app/product-api/pkg/logs"
 	"app/product-api/pkg/middlewares"
@@ -31,13 +32,16 @@ func startServer() {
 	fmt.Println(db)
 
 	// Инициализация репозитория
-	repo := repository.NewRepository(db)
+	productRepo := repository.NewRepository(db)
+	userRepo := user.NewRepository(db)
 
 	// Инициализация сервиса
-	service := product.NewService(repo)
+	productService := product.NewService(productRepo)
+	userService := user.NewService(userRepo)
 
 	// Подключение хэдлеров
-	product.NewHandler(router, service)
+	product.NewHandler(router, productService)
+	user.NewHandler(router, userService, conf)
 
 	// Инициализация Middleware
 	chainMdw := middlewares.CallMiddleware(

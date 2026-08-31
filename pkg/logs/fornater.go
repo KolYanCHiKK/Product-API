@@ -103,3 +103,7 @@ func formatValue(value interface{}) string {
 		return fmt.Sprintf("%v", v)
 	}
 }
+
+func AddErrLog(fields log.Fields, info string) {
+	log.WithFields(fields).Error(info)
+}

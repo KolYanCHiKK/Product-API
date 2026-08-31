@@ -1,8 +1,11 @@
 package utils
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/lib/pq"
@@ -122,4 +125,36 @@ func BuildSetParams(parameters map[string]any, whiteList map[string]string) (*st
 	joinWhereRow := strings.Join(setDefinition, ", ")
 
 	return &joinWhereRow, setParameters, nil
+}
+
+func GenerateRandomCode(length int) (string, error) {
+	if length < 4 {
+		return "", errors.New("length must be more than 4")
+	}
+
+	b := make([]byte, length)
+	if _, err := cryptorand.Read(b); err != nil {
+		return "", err
+	}
+
+	n := binary.BigEndian.Uint32(b) % uint32(math.Pow(10, float64(length)))
+
+	return fmt.Sprintf("%04d", n), nil
+}
+
+func MapPhoneToStandardPattern(phone string) (string, error) {
+	runePhone := []rune(phone)
+	if string(runePhone[0]) == "+" {
+		return string(runePhone), nil
+	} else if string(runePhone[0]) != "8" {
+		return "", errors.New("error phone number validation")
+	}
+
+	var rightPhone []rune
+	rightPhone = append(rightPhone, []rune("+7")...)
+	for i := 1; i < len(runePhone); i++ {
+		rightPhone = append(rightPhone, runePhone[i])
+	}
+
+	return string(rightPhone), nil
 }

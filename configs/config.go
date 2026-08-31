@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"app/product-api/pkg/auth"
 	"fmt"
 	"os"
 
@@ -17,7 +18,7 @@ type DbConfig struct {
 }
 
 type AuthConfig struct {
-	Secret string
+	JWT *auth.JWTAuth
 }
 
 func LoadConfig() *Config {
@@ -31,7 +32,7 @@ func LoadConfig() *Config {
 			DSN: os.Getenv("DSN"),
 		},
 		Auth: &AuthConfig{
-			Secret: os.Getenv("TOKEN"),
+			JWT: auth.NewJWTAuth(os.Getenv("SECRET")),
 		},
 	}
 }
