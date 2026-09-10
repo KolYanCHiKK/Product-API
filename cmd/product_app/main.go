@@ -46,7 +46,9 @@ func startServer() {
 	// Инициализация Middleware
 	chainMdw := middlewares.CallMiddleware(
 		middlewares.Cors,
+		middlewares.NewAuthMiddlewares(conf.Auth.JWT).Auth,
 		middlewares.Logger,
+		middlewares.NewTimeoutMiddleware(600).AddTimeout,
 	)
 
 	server := http.Server{

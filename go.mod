@@ -1,6 +1,6 @@
 module app/product-api
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
@@ -21,7 +21,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.49 // indirect
 	github.com/sirupsen/logrus v1.10.0 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	gorm.io/driver/postgres v1.6.2 // indirect

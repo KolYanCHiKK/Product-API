@@ -1,12 +1,14 @@
 package utils
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -157,4 +159,9 @@ func MapPhoneToStandardPattern(phone string) (string, error) {
 	}
 
 	return string(rightPhone), nil
+}
+
+func AddRequestTimeout(ctx context.Context, second float64) (context.Context, context.CancelFunc) {
+	timeout, cancel := context.WithTimeout(ctx, time.Duration(second)*time.Second)
+	return timeout, cancel
 }

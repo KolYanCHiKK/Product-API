@@ -2,6 +2,7 @@ package repository
 
 import (
 	"app/product-api/pkg/db"
+	"context"
 	"fmt"
 )
 
@@ -13,9 +14,10 @@ func NewRepository(db *db.Db) *ProductRepository {
 	return &ProductRepository{db}
 }
 
-func (r *ProductRepository) Create(productParameters *Product) (*Product, error) {
+func (r *ProductRepository) Create(ctx context.Context, productParameters *Product) (*Product, error) {
 	var product Product
 	result := r.
+		WithContext(ctx).
 		Raw(
 			createProduct,
 			productParameters.Name,
@@ -31,11 +33,11 @@ func (r *ProductRepository) Create(productParameters *Product) (*Product, error)
 	return &product, nil
 }
 
-func (r *ProductRepository) GetAllRows(limit int, offset int, orderBy string) ([]Product, error) {
+func (r *ProductRepository) GetAllRows(ctx context.Context, limit int, offset int, orderBy string) ([]Product, error) {
 	var products []Product
 
 	result := r.
-		Debug().
+		WithContext(ctx).
 		Raw(
 			fmt.Sprintf(getAllProducts, orderBy),
 			limit,
@@ -49,9 +51,10 @@ func (r *ProductRepository) GetAllRows(limit int, offset int, orderBy string) ([
 	return products, nil
 }
 
-func (r *ProductRepository) CountAllRaws() (int, error) {
+func (r *ProductRepository) CountAllRaws(ctx context.Context) (int, error) {
 	var totalCount int
 	result := r.
+		WithContext(ctx).
 		Raw(
 			countAllProductsRows,
 		).
@@ -62,12 +65,14 @@ func (r *ProductRepository) CountAllRaws() (int, error) {
 	if result.Error != nil {
 		return 0, result.Error
 	}
+
 	return totalCount, nil
 }
 
-func (r *ProductRepository) GetProductById(productId int) (*Product, error) {
+func (r *ProductRepository) GetProductById(ctx context.Context, productId int) (*Product, error) {
 	var product Product
 	result := r.
+		WithContext(ctx).
 		Raw(
 			getProductByID,
 			productId,
@@ -82,9 +87,10 @@ func (r *ProductRepository) GetProductById(productId int) (*Product, error) {
 	return &product, nil
 }
 
-func (r *ProductRepository) PutProduct(productId int, name string, price float64, quantity int, descriptions string, image string) (*Product, error) {
+func (r *ProductRepository) PutProduct(ctx context.Context, productId int, name string, price float64, quantity int, descriptions string, image string) (*Product, error) {
 	var product Product
 	result := r.
+		WithContext(ctx).
 		Raw(
 			updateProduct,
 			name,
@@ -104,10 +110,11 @@ func (r *ProductRepository) PutProduct(productId int, name string, price float64
 	return &product, nil
 }
 
-func (r *ProductRepository) PatchProduct(productId int, setRow string, setParams []any) (*Product, error) {
+func (r *ProductRepository) PatchProduct(ctx context.Context, productId int, setRow string, setParams []any) (*Product, error) {
 	var product Product
 	setParams = append(setParams, productId)
 	result := r.
+		WithContext(ctx).
 		Raw(
 			fmt.Sprintf(patchProduct, setRow, len(setParams)),
 			setParams...,
@@ -122,9 +129,10 @@ func (r *ProductRepository) PatchProduct(productId int, setRow string, setParams
 	return &product, nil
 }
 
-func (r *ProductRepository) DeleteProduct(deleteRow string, deleteParams []any) ([]Product, *int, error) {
+func (r *ProductRepository) DeleteProduct(ctx context.Context, deleteRow string, deleteParams []any) ([]Product, *int, error) {
 	var products []Product
 	result := r.
+		WithContext(ctx).
 		Raw(
 			fmt.Sprintf(deleteProduct, deleteRow),
 			deleteParams...,

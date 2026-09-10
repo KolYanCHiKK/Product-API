@@ -3,8 +3,10 @@ package product
 import (
 	"app/product-api/internal/rest/product/repository"
 	"app/product-api/pkg/utils"
+	"context"
 	"strconv"
-	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type Service struct {
@@ -15,7 +17,7 @@ func NewService(repo *repository.ProductRepository) *Service {
 	return &Service{repo}
 }
 
-func (s *Service) CreateProduct(req *CreateProductRequest) (*CreateProductResponse, error) {
+func (s *Service) CreateProduct(ctx context.Context, req *CreateProductRequest) (*CreateProductResponse, error) {
 	productRow := &repository.Product{
 		Name:         req.Name,
 		Price:        *req.Price,
@@ -24,61 +26,58 @@ func (s *Service) CreateProduct(req *CreateProductRequest) (*CreateProductRespon
 		Images:       utils.MapProductImage(req.Images),
 	}
 
-	result, err := s.Repository.Create(productRow)
+	result, err := s.Repository.Create(ctx, productRow)
 	if err != nil {
 		return nil, err
 	}
 	return &CreateProductResponse{*result}, nil
 }
 
-func (s *Service) GetAllProduct(page int, pageSize int, orderBy string) (*GetAllProductResponse, error) {
+func (s *Service) GetAllProduct(ctx context.Context, page int, pageSize int, orderBy string) (*GetAllProductResponse, error) {
 	orderStr, err := utils.BuildOrderBy(orderBy, repository.ProductAllowedMap)
 	if err != nil {
 		return nil, err
 	}
 
-	wg := sync.WaitGroup{}
+	g, ctx := errgroup.WithContext(ctx)
+	totalCh := make(chan int)
+	productCh := make(chan []repository.Product)
 	errCh := make(chan error)
 
-	totalCh := make(chan int)
-	wg.Add(1)
-	go func(totalCh chan<- int, errCh chan<- error) {
-		defer wg.Done()
-		total, err := s.Repository.CountAllRaws()
+	g.Go(func() error {
+		total, err := s.Repository.CountAllRaws(ctx)
 		if err != nil {
-			errCh <- err
-			return
+			return err
 		}
-		totalCh <- total
-	}(totalCh, errCh)
 
-	productCh := make(chan []repository.Product)
-	wg.Add(1)
-	go func(productCh chan<- []repository.Product, errCh chan<- error) {
-		defer wg.Done()
+		totalCh <- total
+		return nil
+	})
+	g.Go(func() error {
 		rows, err := s.Repository.GetAllRows(
+			ctx,
 			pageSize,
 			(page-1)*pageSize,
 			orderStr,
 		)
 		if err != nil {
-			errCh <- err
-			return
+			return err
 		}
-		productCh <- rows
-	}(productCh, errCh)
 
+		productCh <- rows
+		return nil
+	})
 	go func() {
-		wg.Wait()
+		if err := g.Wait(); err != nil {
+			errCh <- err
+		}
+		close(errCh)
 		close(totalCh)
 		close(productCh)
-		close(errCh)
 	}()
 
 	var rows []repository.Product
 	var total int
-	// Добавить при изучении темы "Контекст" context.WithCancel, чтобы после получения в канале
-	// errCh значения, все остальные горутины завершались
 	for received := 0; received < 2; {
 		select {
 		case err = <-errCh:
@@ -98,12 +97,12 @@ func (s *Service) GetAllProduct(page int, pageSize int, orderBy string) (*GetAll
 	}, nil
 }
 
-func (s *Service) GetProductById(id string) (*GetProductByIdResponse, error) {
+func (s *Service) GetProductById(ctx context.Context, id string) (*GetProductByIdResponse, error) {
 	productId, err := strconv.Atoi(id)
 	if err != nil {
 		return nil, err
 	}
-	product, err := s.Repository.GetProductById(productId)
+	product, err := s.Repository.GetProductById(ctx, productId)
 	if product == nil {
 		return nil, nil
 	}
@@ -114,8 +113,9 @@ func (s *Service) GetProductById(id string) (*GetProductByIdResponse, error) {
 	return &GetProductByIdResponse{*product}, nil
 }
 
-func (s *Service) PutProduct(productId int, req UpdateProductRequest) (*UpdateProductResponse, error) {
+func (s *Service) PutProduct(ctx context.Context, productId int, req UpdateProductRequest) (*UpdateProductResponse, error) {
 	product, err := s.Repository.PutProduct(
+		ctx,
 		productId,
 		req.Name,
 		*req.Price,
@@ -132,13 +132,13 @@ func (s *Service) PutProduct(productId int, req UpdateProductRequest) (*UpdatePr
 	return &UpdateProductResponse{*product}, nil
 }
 
-func (s *Service) PatchProduct(parametersMap map[string]any, productId int) (*PatchProductResponse, error) {
+func (s *Service) PatchProduct(ctx context.Context, parametersMap map[string]any, productId int) (*PatchProductResponse, error) {
 	setStr, setParam, err := utils.BuildSetParams(parametersMap, repository.ProductAllowedMap)
 	if err != nil {
 		return nil, err
 	}
 
-	product, err := s.Repository.PatchProduct(productId, *setStr, setParam)
+	product, err := s.Repository.PatchProduct(ctx, productId, *setStr, setParam)
 	if err != nil {
 		return nil, err
 	}
@@ -149,13 +149,13 @@ func (s *Service) PatchProduct(parametersMap map[string]any, productId int) (*Pa
 	return &PatchProductResponse{*product}, nil
 }
 
-func (s *Service) DeleteProduct(parametersMap map[string]any) (*DeleteProductResponse, error) {
+func (s *Service) DeleteProduct(ctx context.Context, parametersMap map[string]any) (*DeleteProductResponse, error) {
 	whereStr, whereParam, err := utils.BuildWhereFilter(parametersMap, repository.ProductAllowedMap)
 	if err != nil {
 		return nil, err
 	}
 
-	products, totalRow, err := s.Repository.DeleteProduct(*whereStr, whereParam)
+	products, totalRow, err := s.Repository.DeleteProduct(ctx, *whereStr, whereParam)
 	if err != nil {
 		return nil, err
 	}

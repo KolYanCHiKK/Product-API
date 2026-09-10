@@ -37,7 +37,7 @@ func (h *Handler) GetProducts() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.Service.GetAllProduct(page, pageSize, query.Get("orderBy"))
+		resp, err := h.Service.GetAllProduct(req.Context(), page, pageSize, query.Get("orderBy"))
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
 			return
@@ -53,7 +53,7 @@ func (h *Handler) GetProducts() http.HandlerFunc {
 func (h *Handler) GetProductById() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		productId := req.PathValue("id")
-		resp, err := h.Service.GetProductById(productId)
+		resp, err := h.Service.GetProductById(req.Context(), productId)
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
 			return
@@ -90,7 +90,7 @@ func (h *Handler) CreateProduct() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.Service.CreateProduct(&body)
+		resp, err := h.Service.CreateProduct(req.Context(), &body)
 		if err != nil {
 			responce.CreateErrResponse(w, 500, err.Error())
 			return
@@ -129,6 +129,7 @@ func (h *Handler) UpdateProduct() http.HandlerFunc {
 		}
 
 		resp, err := h.Service.PutProduct(
+			req.Context(),
 			productId,
 			body,
 		)
@@ -174,6 +175,7 @@ func (h *Handler) PatchProduct() http.HandlerFunc {
 		}
 
 		resp, err := h.Service.PatchProduct(
+			req.Context(),
 			map[string]any{
 				"name":         body.Name,
 				"price":        body.Price,
@@ -220,6 +222,7 @@ func (h *Handler) DeleteProduct() http.HandlerFunc {
 		}
 
 		resp, err := h.Service.DeleteProduct(
+			req.Context(),
 			map[string]any{
 				"productId":    body.ProductId,
 				"name":         body.Name,
