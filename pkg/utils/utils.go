@@ -13,6 +13,10 @@ import (
 	"github.com/lib/pq"
 )
 
+func FormatDate(t time.Time) string {
+	return t.Format("2006-01-02")
+}
+
 func MapProductImage(image string) pq.StringArray {
 	if image == "" {
 		return nil

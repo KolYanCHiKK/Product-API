@@ -17,7 +17,16 @@ type JWTAuth struct {
 
 type DecodedToken struct {
 	SessionId uuid.UUID
+	UserId    int
 	Phone     string
+}
+
+type Claims struct {
+	SessionID uuid.UUID `json:"sessionId"`
+	UserID    int       `json:"userId"`
+	Phone     string    `json:"phone"`
+
+	jwt.RegisteredClaims
 }
 
 func NewJWTAuth(secret string) *JWTAuth {
@@ -26,18 +35,22 @@ func NewJWTAuth(secret string) *JWTAuth {
 	}
 }
 
-func NewDecodedToken(sessionId uuid.UUID, phone string) *DecodedToken {
+func NewDecodedToken(sessionId uuid.UUID, userId int, phone string) *DecodedToken {
 	return &DecodedToken{
 		SessionId: sessionId,
+		UserId:    userId,
 		Phone:     phone,
 	}
 }
 
-func (j *JWTAuth) CreateJWT(sessionId uuid.UUID, phone string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sessionId": sessionId,
-		"phone":     phone,
-	})
+func (j *JWTAuth) CreateJWT(sessionId uuid.UUID, userId int, phone string) (string, error) {
+	claims := Claims{
+		SessionID: sessionId,
+		UserID:    userId,
+		Phone:     phone,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	singedToken, err := token.SignedString([]byte(j.Secret))
 	if err != nil {
@@ -48,13 +61,17 @@ func (j *JWTAuth) CreateJWT(sessionId uuid.UUID, phone string) (string, error) {
 }
 
 func (j *JWTAuth) DecodeToken(authTokenStr string) (bool, *DecodedToken) {
-	token, err := jwt.Parse(authTokenStr, func(token *jwt.Token) (any, error) {
-		if token.Method.Alg() != jwt.SigningMethodHS256.Name {
-			return nil, fmt.Errorf("unexpected signing algorithm: %v", token.Header["alg"])
-		}
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(
+		authTokenStr,
+		claims,
+		func(token *jwt.Token) (any, error) {
+			if token.Method.Alg() != jwt.SigningMethodHS256.Name {
+				return nil, fmt.Errorf("unexpected signing algorithm: %v", token.Header["alg"])
+			}
 
-		return []byte(j.Secret), nil
-	})
+			return []byte(j.Secret), nil
+		})
 	if err != nil {
 		logs.AddErrLog(logrus.Fields{
 			"Error": err,
@@ -64,12 +81,8 @@ func (j *JWTAuth) DecodeToken(authTokenStr string) (bool, *DecodedToken) {
 	}
 
 	// Если токен валидный, то вернем структуру декодирования
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		sessionId, err := uuid.Parse(claims["sessionId"].(string))
-		if err != nil {
-			return false, nil
-		}
-		return true, NewDecodedToken(sessionId, claims["phone"].(string))
+	if decodedClaims, ok := token.Claims.(*Claims); ok && token.Valid {
+		return true, NewDecodedToken(decodedClaims.SessionID, decodedClaims.UserID, decodedClaims.Phone)
 	}
 
 	// Иначе запишем ошибку

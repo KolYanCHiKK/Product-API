@@ -2,12 +2,14 @@ package main
 
 import (
 	"app/product-api/configs"
+	"app/product-api/internal/rest/order"
 	"app/product-api/internal/rest/product"
 	"app/product-api/internal/rest/product/repository"
 	"app/product-api/internal/rest/user"
 	db2 "app/product-api/pkg/db"
 	"app/product-api/pkg/logs"
 	"app/product-api/pkg/middlewares"
+	uow2 "app/product-api/pkg/uow"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,6 +33,10 @@ func startServer() {
 	}
 	fmt.Println(db)
 
+	// UnitOfWork
+	uow := uow2.NewUnitOfWork(db)
+	transactManager := uow2.NewTransactionsManager(uow)
+
 	// Инициализация репозитория
 	productRepo := repository.NewRepository(db)
 	userRepo := user.NewRepository(db)
@@ -38,10 +44,15 @@ func startServer() {
 	// Инициализация сервиса
 	productService := product.NewService(productRepo)
 	userService := user.NewService(userRepo)
+	orderService := order.NewService(transactManager)
 
 	// Подключение хэдлеров
 	product.NewHandler(router, productService)
 	user.NewHandler(router, userService, conf)
+	order.NewHandler(router, &order.HandlerDeps{
+		Service:             orderService,
+		TransactionsManager: transactManager,
+	})
 
 	// Инициализация Middleware
 	chainMdw := middlewares.CallMiddleware(

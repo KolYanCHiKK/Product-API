@@ -30,4 +30,13 @@ var (
 		"Code.required":      "Не был передан код подтверждения",
 		"Code.len":           "Неверный код",
 	}
+
+	OrderCreateValidate = map[string]string{
+		"UserId.required":    "Не был передан идентификатор пользователя",
+		"Products.required":  "Не были переданы товары в заказе",
+		"Products.dive":      "Не удалось проверить корректность вложенного map",
+		"Products.min":       "Не были добавлены товары в заказ",
+		"ProductId.required": "Не было указан идентификатор товара",
+		"Quantity.required":  "Не было указано количество товара",
+	}
 )

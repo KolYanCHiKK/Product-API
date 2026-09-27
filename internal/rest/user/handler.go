@@ -86,7 +86,7 @@ func (h *Handler) ConfirmCode() http.HandlerFunc {
 			return
 		}
 
-		token, err := h.Auth.JWT.CreateJWT(body.SessionId, userParams.Phone)
+		token, err := h.Auth.JWT.CreateJWT(body.SessionId, userParams.UserId, userParams.Phone)
 		if err != nil {
 			responce.CreateErrResponse(w, 401, err.Error())
 			return

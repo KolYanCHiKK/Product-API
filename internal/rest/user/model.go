@@ -1,6 +1,7 @@
 package user
 
 import (
+	"app/product-api/internal/rest/order"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,8 @@ type User struct {
 	IsDeleted bool       `gorm:"not null;type:boolean;default:true"`
 	CreatedAt time.Time  `gorm:"not null;type:timestamptz;autoCreateTime"`
 	UpdatedAt time.Time  `gorm:"not null;type:timestamptz;autoUpdateTime"`
+
+	Orders []order.Order
 }
 
 type Session struct {

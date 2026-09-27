@@ -13,6 +13,7 @@ type AuthMiddlewares struct {
 
 const (
 	PhoneKey     string = "phone"
+	UserId       string = "userId"
 	SessionIdKey string = "sessionId"
 )
 
@@ -45,9 +46,13 @@ func (j *AuthMiddlewares) Auth(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(
-			context.WithValue(req.Context(), PhoneKey, decodedPayload.Phone),
-			SessionIdKey,
-			decodedPayload.SessionId,
+			context.WithValue(
+				context.WithValue(req.Context(), PhoneKey, decodedPayload.Phone),
+				SessionIdKey,
+				decodedPayload.SessionId,
+			),
+			UserId,
+			decodedPayload.UserId,
 		)
 
 		next.ServeHTTP(w, req.WithContext(ctx))

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"app/product-api/internal/rest/order"
 	"time"
 
 	"github.com/lib/pq"
@@ -26,4 +27,6 @@ type Product struct {
 	Images       pq.StringArray `json:"images,omitempty" gorm:"column:images;type:text[]" db:"images"`
 	CreateAt     time.Time      `json:"createAt" gorm:"column:created_at;type:timestamptz;not null;default:now()" db:"created_at"`
 	UpdateAt     time.Time      `json:"updateAt" gorm:"column:updated_at;type:timestamptz;not null;default:now()" db:"updated_at"`
+
+	OrderProduct []order.OrderProduct
 }
